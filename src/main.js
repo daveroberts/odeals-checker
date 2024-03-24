@@ -2,6 +2,7 @@ const puppeteer = require("puppeteer");
 const fs = require("fs");
 const path = require("path");
 const { mkdirp } = require("mkdirp");
+const csv_parse = require("papaparse").parse;
 require("dotenv").config();
 const nodemailer = require("nodemailer");
 const transporter = nodemailer.createTransport({
@@ -23,8 +24,10 @@ const HOUR_6AM = 10;
 const HOUR_12PM = 16;
 const HOUR_6PM = 22;
 
+let to_filename = (str) => str.replace(/[^a-z0-9]/gi, "");
+
 let watchlist_txt = fs.readFileSync("watchlist.csv").toString();
-let watchlist_rows = watchlist_txt.split("\n").map((line) => line.split(","));
+let watchlist_rows = csv_parse(watchlist_txt).data;
 watchlist = watchlist_rows.map((row) => {
   return {
     title: row[0],
@@ -36,11 +39,14 @@ watchlist = watchlist_rows.map((row) => {
 (async function run() {
   console.log("Running report...");
   let now = new Date();
-  let day_of_month = now.getDate();
-  let day_of_week = now.getDay();
-  let hour = now.getHours();
-  //await send_email("This is a test email");
-  await gather_prices();
+  try {
+    await gather_prices();
+  } catch (err) {
+    await send_email(
+      "Meta Quest error gathering prices",
+      "There was an error when trying to gather prices"
+    );
+  }
 })();
 
 async function gather_prices() {
@@ -52,21 +58,15 @@ async function gather_prices() {
   for (let item of watchlist) {
     let price = await gather_price(page, item);
     prices[item.title] = price;
-    //await new Promise((r) => setTimeout(r, 10 * 1000));
   }
-  await record_prices(prices);
   await send_discount_email(prices);
   await browser.close();
 }
 
-async function record_prices(prices) {
-  let keys = Object.keys(prices);
-  for (let title of Object.keys(prices)) {
-    let price = prices[title];
-    await mkdirp("history");
-    let filepath = path.join("history", `${title}.csv`);
-    fs.appendFileSync(filepath, `${new Date().toISOString()},${price}\n`);
-  }
+async function record_price(title, price) {
+  await mkdirp("history");
+  let filepath = path.join("history", `${to_filename(title)}.csv`);
+  fs.appendFileSync(filepath, `${new Date().toISOString()},${price}\n`);
 }
 
 async function send_discount_email(prices) {
@@ -75,14 +75,18 @@ async function send_discount_email(prices) {
     let price = prices[title];
     let item = watchlist.find((item) => item.title == title);
     if (parseFloat(price) < parseFloat(item.email_when_below)) {
-      items_to_alert.push({ item, price });
+      let threshold = item.email_when_below;
+      items_to_alert.push({ item, price, threshold });
     }
   }
   if (items_to_alert.length > 0) {
     await send_email(
       "Meta Quest deals found",
       items_to_alert
-        .map((struct) => `Title: ${struct.item.title}, Price: ${struct.price}`)
+        .map(
+          (struct) =>
+            `Title: ${struct.item.title}, Price: $${struct.price} (below $${struct.threshold})`
+        )
         .join("\n")
     );
   }
@@ -103,7 +107,11 @@ async function gather_price(page, item) {
     }
     return prices[0];
   });
+  record_price(item.title, price);
   console.log(`${item.title} is $${price}`);
+  if (parseFloat(price) < parseFloat(item.email_when_below)) {
+    console.log(`Price is below threshold! ($${item.email_when_below})`);
+  }
   return price;
 }
 
