@@ -33,6 +33,7 @@ watchlist = watchlist_rows.map((row) => {
     title: row[0],
     url: row[1],
     email_when_below: row[2],
+    perform_check: row[3],
   };
 });
 
@@ -56,6 +57,9 @@ async function gather_prices() {
   const page = await browser.newPage();
   let prices = {};
   for (let item of watchlist) {
+    if (!item.perform_check) {
+      continue;
+    }
     let price = await gather_price(page, item);
     prices[item.title] = price;
   }
@@ -89,6 +93,8 @@ async function send_discount_email(prices) {
         )
         .join("\n")
     );
+  } else {
+    await send_email("Meta Quest - No deals found", "Better luck tomorrow");
   }
 }
 
