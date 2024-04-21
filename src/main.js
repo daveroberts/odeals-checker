@@ -16,13 +16,6 @@ const transporter = nodemailer.createTransport({
 });
 
 const WAIT_SECONDS = 10;
-const DAY_SUNDAY = 0;
-const DAY_WEDNESDAY = 3;
-const DAY_THURSDAY = 4;
-const DAY_SATURDAY = 6;
-const HOUR_6AM = 10;
-const HOUR_12PM = 16;
-const HOUR_6PM = 22;
 
 let to_filename = (str) => str.replace(/[^a-z0-9]/gi, "");
 
@@ -33,7 +26,7 @@ watchlist = watchlist_rows.map((row) => {
     title: row[0],
     url: row[1],
     email_when_below: row[2],
-    perform_check: row[3],
+    perform_check: parseInt(row[3]),
   };
 });
 
