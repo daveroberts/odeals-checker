@@ -23,16 +23,12 @@ The .env file should contain one line per configuration variable. For example:
 
     npm start
 
-## Setup Github actions
+## Setting up daily runs
 
-Remove watchlist.csv from .gitignore
-In your github repo, click settings > Secrets and Variables > Actions
-Click "New Repository Secret". "SMTP_HOSTNAME" for the name, and "smtp.gmail.com" for the secret. Don't add quotes or newlines. Repeat for all other secrets
+Windows "Task Scheduler".
 
-## Run Github actions
+Create Task. Location can be "\".
 
-Github projects > Actions > "Report"
+Triggers: Daily at some time.
 
-## Disable / Re-enable workflow
-
-Github > Repo > Actions tab > Click Report on the left > Click triple elipsis on right, Disable
+Actions: Start a program. node <path_to_main.js>
