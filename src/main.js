@@ -96,15 +96,21 @@ async function gather_price(page, item) {
   await page.goto(item.url, { waitUntil: "domcontentloaded" });
   await new Promise((r) => setTimeout(r, WAIT_SECONDS * 1000));
   let price = await page.evaluate(() => {
-    let price_boxes = document.getElementsByClassName("app-purchase-price");
-    let prices = Array.from(price_boxes).map((pb) => pb.innerText);
-    prices = prices.filter((p) => p.startsWith("$"));
-    prices = prices.map((p) => p.substring(1));
-    prices = [...new Set(prices)];
-    if (prices.length == 0) {
-      throw new Error(`No price found`);
+    let txt = document.documentElement.innerHTML;
+    let price_matches = txt.matchAll(
+      /<span[\sa-z="0-9]+>\$(\d+\.\d+)<\/span>/g
+    );
+    let prices = [];
+    for (let price_match of price_matches) {
+      if (price_match[0] == "$0.00") {
+        continue;
+      }
+      prices.push(price_match[1]);
     }
-    return prices[0];
+    if (prices.length == 0) {
+      throw new Error("Could not find a price");
+    }
+    return prices[prices.length - 1];
   });
   record_price(item.title, price);
   console.log(`${item.title} is $${price}`);
